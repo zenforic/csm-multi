@@ -2,4 +2,4 @@
 
 A Conversational Speech Generation Model
 
-- Landing soon. Our open source model that powers conversational speech generation [demo]( https://www.sesame.com/research/crossing_the_uncanny_valley_of_voice#demo)
+- Landing soon. Our open source model that powers our conversational speech generation [demo]( https://www.sesame.com/research/crossing_the_uncanny_valley_of_voice#demo)
