@@ -10,9 +10,14 @@ A fine-tuned variant of CSM powers the [interactive voice demo](https://www.sesa
 
 A hosted [HuggingFace space](https://huggingface.co/spaces/sesame/csm-1b) is also available for testing audio generation.
 
-## Usage
+## Requirements
 
-Setup the repo
+* A CUDA-compatible GPU
+* The code has been tested on CUDA 12.4 and 12.6, but it may also work on other versions
+* Simiarly, Python 3.10 is recommended, but newer versions may be fine
+* For some audio operations, `ffmpeg` may be required
+
+### Setup
 
 ```bash
 git clone git@github.com:SesameAILabs/csm.git
@@ -21,6 +26,12 @@ python3.10 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+### Windows Setup
+
+The `triton` package cannot be installed in Windows. Instead use `pip install triton-windows`.
+
+## Usage
 
 Generate a sentence
 
