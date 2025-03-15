@@ -1,3 +1,14 @@
+# CSM-Multi
+
+## Diffe
+**diffe.py** Modified script from issue [61](https://github.com/SesameAILabs/csm/issues/61) from the original Sesame repo. Thanks to [@asiff00](https://github.com/asiff00) for the original code, there is now a way to, while keeping the models loaded, enter multiple text prompts without waiting for a reload each time. I've also added multi speaker support using speaker offset text splitting. simply separate each speaker's text with `||` and add a number to the end of the text that will be used as the offset (else a default offset will be applied). It also included a simple reference audio input capability, not as sophisticated as [csm-voice-cloning](https://github.com/isaiahbjork/csm-voice-cloning) repo's voice-clone.py, of which I've also added a modification for. (Thanks to that repo's author for the original, most use instructions can be found there, but new things will be discussed here).
+
+The maximum amount of "multi-speakers" for now is 4, but this can be experimented with in the code. I've not yet come up with a better solution to ffmpeg concat argument increases per gen.
+
+## Voice-Clone
+
+Thanks to the efforts in this repo: [csm-voice-cloning](https://github.com/isaiahbjork/csm-voice-cloning) a "better than simple reference" voice cloning via Sesame exists. See the original repo for more. New features added are the same multispeaker functionality and commands from diffe.
+
 # CSM
 
 **2025/03/13** - We are releasing the 1B CSM variant. The checkpoint is [hosted on Hugging Face](https://huggingface.co/sesame/csm_1b).
