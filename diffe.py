@@ -91,8 +91,9 @@ try:
                         print(f"Generating audio for: '{pwii[i]}'")
                         
                         try:
-                            spkrOffset = int(pwii[i][-1])
+                            spkrOffset = int((pwii[i][-2:]) if pwii[i][-2] == '-' else pwii[i][-1])
                             print(f"Speaker offset: {spkrOffset}")
+                            pwii[i] = pwii[i][:-2] if pwii[i][-2] == '-' else pwii[i][:-1]
                         except:
                             spkrOffset = i
                             print(f"No speaker offset found, using default: {spkrOffset}")
@@ -136,11 +137,11 @@ try:
                         case 1:
                             run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -filter_complex '[0:0][1:0]concat=n=2:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
                         case 2:
-                            run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -i secondary.wav -filter_complex '[0:0][1:0][2:0]concat=n=3:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
+                            run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -i secondary2.wav -filter_complex '[0:0][1:0][2:0]concat=n=3:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
                         case 3:
-                            run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -i secondary.wav -i secondary.wav -filter_complex '[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
+                            run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -i secondary2.wav -i secondary3.wav -filter_complex '[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
                         case 4:
-                            run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -i secondary.wav -i secondary.wav -i secondary.wav -filter_complex '[0:0][1:0][2:0][3:0][4:0]concat=n=5:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
+                            run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -i secondary2.wav -i secondary3.wav -i secondary4.wav -filter_complex '[0:0][1:0][2:0][3:0][4:0]concat=n=5:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
             
         except Exception as e:
             print(f"Error generating audio: {e}")
