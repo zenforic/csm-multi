@@ -28,6 +28,9 @@ cd csm
 python3.10 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+
+# You will need access to CSM-1B and Llama-3.2-1B
+huggingface-cli login
 ```
 
 ### Windows Setup
