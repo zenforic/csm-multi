@@ -17,6 +17,13 @@ Thanks to the efforts in this repo: [csm-voice-cloning](https://github.com/isaia
 
 To use the 4096 (or other context sizes) rename `models.py` to `models.py.old` or some such and rename `models-cloning.py` to `models.py` and follow the instructions in the original csm-voice-cloning repo on how to change that and the `voice_clone.py` file for more context.
 
+## Commands usage
+Both scripts contain commands you can enter in the enter text prompt:
+
+* `$CLEAR$` clear the context. Useful if generations are getting weird or errors about the inputs being too long crop up.
+* `$SWAP$` Swap primary speakers (increments `spkr` by 1).
+* `$BACK$` Swap backwards on primary speakers (decrements `spkr` by 1).
+
 # CSM
 
 **2025/03/13** - We are releasing the 1B CSM variant. The checkpoint is [hosted on Hugging Face](https://huggingface.co/sesame/csm_1b).
