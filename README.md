@@ -8,6 +8,7 @@ The maximum amount of "multi-speakers" for now is 4, but this can be experimente
 ### Offsets usage:
 Example input:
 Yeah, they're real cool.`||`I see that Yala! How rare are they?`||`I dunno, they're a pwii.`0`
+
 The `||`s are the separators for different generations in one go (4 max) and the option `0` is the offset to the speaker, which defaults to +1 per `||`. In this case, the first speaker will speak, then the second, then the first again.
 
 ## Voice-Clone
