@@ -182,9 +182,9 @@ def generate_speech_with_context(
                 )
                 
                 if len(context_segments) > 5:
-                        context_segments = context_segments[-5:]
+                    context_segments = context_segments[-5:]
                         
-                    conversation_history.append({"role": "user", "content": text if not pwii else pwii[0]})
+                conversation_history.append({"role": "user", "content": text if not pwii else pwii[0]})
                 
                 if (pwii):
                     print(f"Generating audio for: '{pwii[1]}'")
