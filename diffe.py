@@ -59,6 +59,7 @@ try:
             elif (text == "$BACK$"):
                 spkr -= 1
             else:
+                pwii = []
                 if ("||" in text):
                     pwii = text.split('||')
                 print(f"Generating audio for: '{text if not pwii else pwii[0]}'")
