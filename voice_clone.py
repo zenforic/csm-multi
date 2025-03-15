@@ -232,4 +232,5 @@ def main():
         output_filename="cloned_voice.wav"
     )
     
-main()
+if __name__ == "__main__":
+    main()
