@@ -9,7 +9,13 @@ from subprocess import run
 try:
     print("Loading model...")
     model_path = hf_hub_download(repo_id="sesame/csm-1b", filename="ckpt.pt")
-    generator = load_csm_1b(model_path, "cuda")
+    if torch.backends.mps.is_available():
+        device = "mps"
+    elif torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+    generator = load_csm_1b(model_path, device)
     print("Model loaded successfully!")
     reference_path = "reference.wav"
     context_segments = []
