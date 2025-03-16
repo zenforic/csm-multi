@@ -2,6 +2,7 @@ from huggingface_hub import hf_hub_download
 from generator import load_csm_1b, Segment
 import torchaudio
 import traceback
+from torch import backends, cuda
 import os
 import shlex
 from subprocess import run
@@ -9,9 +10,9 @@ from subprocess import run
 try:
     print("Loading model...")
     model_path = hf_hub_download(repo_id="sesame/csm-1b", filename="ckpt.pt")
-    if torch.backends.mps.is_available():
+    if backends.mps.is_available():
         device = "mps"
-    elif torch.cuda.is_available():
+    elif cuda.is_available():
         device = "cuda"
     else:
         device = "cpu"
