@@ -112,6 +112,7 @@ class Generator:
         max_audio_length_ms: float = 90_000,
         temperature: float = 0.9,
         topk: int = 50,
+        max_seq_len: int = 2048,
     ) -> torch.Tensor:
         self._model.reset_caches()
 
@@ -134,7 +135,7 @@ class Generator:
         curr_tokens_mask = prompt_tokens_mask.unsqueeze(0)
         curr_pos = torch.arange(0, prompt_tokens.size(0)).unsqueeze(0).long().to(self.device)
 
-        max_seq_len = 2048 - max_audio_frames
+        max_seq_len = max_seq_len - max_audio_frames
         if curr_tokens.size(1) >= max_seq_len:
             raise ValueError(f"Inputs too long, must be below max_seq_len - max_audio_frames: {max_seq_len}")
 
