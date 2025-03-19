@@ -42,6 +42,12 @@ The `triton` package cannot be installed in Windows. Instead use `pip install tr
 
 ## Usage
 
+Run the example script:
+```bash
+python run_csm.py
+```
+You can also create your own script using the example code below.
+
 Generate a sentence
 
 ```python
