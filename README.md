@@ -29,6 +29,9 @@ python3.10 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
+# Disable lazy compilation in Mimi
+export NO_TORCH_COMPILE=1
+
 # You will need access to CSM-1B and Llama-3.2-1B
 huggingface-cli login
 ```
@@ -68,6 +71,8 @@ torchaudio.save("audio.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
 CSM sounds best when provided with context. You can prompt or provide context to the model using a `Segment` for each speaker's utterance.
 
 ```python
+from generator import Segment
+
 speakers = [0, 1, 0, 0]
 transcripts = [
     "Hey how are you doing.",
