@@ -115,7 +115,7 @@ class Generator:
     ) -> torch.Tensor:
         self._model.reset_caches()
 
-        max_audio_frames = int(max_audio_length_ms / 80)
+        max_generation_len = int(max_audio_length_ms / 80)
         tokens, tokens_mask = [], []
         for segment in context:
             segment_tokens, segment_tokens_mask = self._tokenize_segment(segment)
@@ -134,11 +134,14 @@ class Generator:
         curr_tokens_mask = prompt_tokens_mask.unsqueeze(0)
         curr_pos = torch.arange(0, prompt_tokens.size(0)).unsqueeze(0).long().to(self.device)
 
-        max_seq_len = 2048 - max_audio_frames
-        if curr_tokens.size(1) >= max_seq_len:
-            raise ValueError(f"Inputs too long, must be below max_seq_len - max_audio_frames: {max_seq_len}")
+        max_seq_len = 2048
+        max_context_len = max_seq_len - max_generation_len
+        if curr_tokens.size(1) >= max_context_len:
+            raise ValueError(
+                f"Inputs too long, must be below max_seq_len - max_generation_len: {max_context_len}"
+            )
 
-        for _ in range(max_audio_frames):
+        for _ in range(max_generation_len):
             sample = self._model.generate_frame(curr_tokens, curr_tokens_mask, curr_pos, temperature, topk)
             if torch.all(sample == 0):
                 break  # eos
