@@ -92,7 +92,8 @@ try:
                 print("Saving audio to audioTest.wav...")
                 torchaudio.save("audioTest.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
                 print("Audio saved successfully!")
-    while True:
+    running = True
+    while running:
         try:
             text = input("Enter text: ")
             if (text == "$CLEAR$"):
@@ -104,8 +105,17 @@ try:
                 print("Cleared.")
             elif (text == "$SWAP$"):
                 spkr += 1
+                print (f"Speaker set to {spkr}")
             elif (text == "$BACK$"):
                 spkr -= 1
+                print (f"Speaker set to {spkr}")
+            elif (text == "$HISTORY$"):
+                print("Conversation history:")
+                for i, entry in enumerate(conversation_history):
+                    print(f"{entry['role']}: {entry['content']}")
+            elif (text == "$EXIT$"):
+                print("Exiting...")
+                running = False
             else:
                 pwii = []
                 if ("||" in text):
