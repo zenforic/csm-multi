@@ -7,6 +7,8 @@
 
 Using the torch catonate method referenced in the new `run_csm.py` example from the original repo, the above limitation has been removed as well as Diffe's reference/audio prompting capability greatly improved. For now, the old method is still used in `voice_clone.py` until all the new techniques are possibly later applied there.
 
+**diffeS.py** Audio stream capable version, does not keep context past references. Thanks to the efforts of [@tibrisch](https://github.com/tibrisch) in [this](https://github.com/tibrisch/csm) repo. Audio does not save, you must record the stream if you want that from this version. Nothing else different aside.
+
 ### References usage:
 
 By default, Diffe will load `reference.wav` as an audio prompt/reference. It is loaded into speaker id 0, which Diffe defaults to using (see [Commands Usage](https://github.com/zenforic/csm-multi?tab=readme-ov-file#commands-usage)). It will now also load (and require) an audio transcription (this can be done with Whisper) of said reference audio in the same name with .txt instead (i.e. `reference.txt`). Subsequently number-suffixed filenames with the same prefixed name (`reference` in this case, so `reference1.wav`, `reference2.wav`, etc.) will be loaded and require similarly named txt transcripts to use. Each will be sorted as done by Python's list `sort()` function and subsequently placed in the speaker numbers/IDs in order. So to switch to `reference1.wav`'s speaker, use `$SWAP$` to use it directly or add a 1 to the end of the sentence in whichever offset separated multi-conversation (see below) you're doing. Any speaker numbers used past the known references will highly likely be an entirely new speaker.
