@@ -86,7 +86,7 @@ try:
                     context=context_segments,
                     max_audio_length_ms=25_000,
                     # temperature=0.95,
-                    # topk=3,
+                    # topk=27,
                     # max_seq_len=4096
                 )
                 print("Saving audio to audioTest.wav...")
@@ -128,7 +128,7 @@ try:
                     context=context_segments,
                     max_audio_length_ms=25_000,
                     # temperature=0.95,
-                    # topk=3,
+                    # topk=27,
                     # max_seq_len=4096 # uncomment any of these to use/change them as needed. For this one, please remember to change it for both models in models.py as well.
                 )
                 
