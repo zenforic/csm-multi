@@ -69,7 +69,6 @@ class AudioStream:
 try:
     print("Loading model...")
     start_time = time()
-    model_path = hf_hub_download(repo_id="sesame/csm-1b", filename="ckpt.pt")
     if torch.backends.mps.is_available():
         device = "mps"
     elif torch.cuda.is_available():

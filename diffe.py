@@ -10,7 +10,6 @@ os.environ["NO_TORCH_COMPILE"] = "1" # Probably optional, but disables mimi lazy
 
 try:
     print("Loading model...")
-    model_path = hf_hub_download(repo_id="sesame/csm-1b", filename="ckpt.pt")
     if backends.mps.is_available():
         device = "mps"
     elif cuda.is_available():
