@@ -73,6 +73,8 @@ class Generator:
         return torch.cat(frame_tokens, dim=0), torch.cat(frame_masks, dim=0)
 
     def _tokenize_audio(self, audio: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        assert audio.ndim == 1, "Audio must be single channel"
+
         frame_tokens = []
         frame_masks = []
 
