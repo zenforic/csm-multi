@@ -31,6 +31,8 @@ Both scripts contain commands you can enter in the enter text prompt:
 * `$CLEAR$` clear the context. Useful if generations are getting weird or errors about the inputs being too long crop up.
 * `$SWAP$` Swap primary speakers (increments `spkr` by 1).
 * `$BACK$` Swap backwards on primary speakers (decrements `spkr` by 1).
+* `$HISTORY$` View conversation history (text).
+* `$EXIT$` Gracefully exit the script.
 
 # CSM
 
