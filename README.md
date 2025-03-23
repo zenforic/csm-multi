@@ -54,6 +54,12 @@ cd csm
 python3.10 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+
+# Disable lazy compilation in Mimi
+export NO_TORCH_COMPILE=1
+
+# You will need access to CSM-1B and Llama-3.2-1B
+huggingface-cli login
 ```
 
 ### Windows Setup
@@ -62,10 +68,15 @@ The `triton` package cannot be installed in Windows. Instead use `pip install tr
 
 ## Usage
 
+Run the example script:
+```bash
+python run_csm.py
+```
+You can also create your own script using the example code below.
+
 Generate a sentence
 
 ```python
-from huggingface_hub import hf_hub_download
 from generator import load_csm_1b
 import torchaudio
 import torch
@@ -76,8 +87,9 @@ elif torch.cuda.is_available():
     device = "cuda"
 else:
     device = "cpu"
-model_path = hf_hub_download(repo_id="sesame/csm-1b", filename="ckpt.pt")
-generator = load_csm_1b(model_path, device)
+
+generator = load_csm_1b(device=device)
+
 audio = generator.generate(
     text="Hello from Sesame.",
     speaker=0,
@@ -91,6 +103,8 @@ torchaudio.save("audio.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
 CSM sounds best when provided with context. You can prompt or provide context to the model using a `Segment` for each speaker's utterance.
 
 ```python
+from generator import Segment
+
 speakers = [0, 1, 0, 0]
 transcripts = [
     "Hey how are you doing.",
