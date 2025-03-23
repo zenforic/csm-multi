@@ -44,3 +44,6 @@ context_audio.wav
 # Model files
 *.pt
 *.ckpt
+
+# Reference caption files
+reference*.txt

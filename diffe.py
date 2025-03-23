@@ -2,10 +2,11 @@ from huggingface_hub import hf_hub_download
 from generator import load_csm_1b, Segment
 import torchaudio
 import traceback
-from torch import backends, cuda
+from torch import backends, cuda, cat as torch_cat
 import os
-import shlex
-from subprocess import run
+from run_csm import prepare_prompt
+
+os.environ["NO_TORCH_COMPILE"] = "1" # Probably optional, but disables mimi lazy compile and disables the need for triton.
 
 try:
     print("Loading model...")
@@ -16,50 +17,90 @@ try:
         device = "cuda"
     else:
         device = "cpu"
-    generator = load_csm_1b(model_path, device)
+    generator = load_csm_1b(device)
     print("Model loaded successfully!")
     reference_path = "reference.wav"
     context_segments = []
-    refs = False
     spkr = 0
-    
-    if os.path.exists(reference_path):
-        print(f"Using {reference_path} as reference audio")
-        refs = True
-
-        def load_audio(audio_path):
-            audio_tensor, sample_rate = torchaudio.load(audio_path)
-            audio_tensor = torchaudio.functional.resample(
-                audio_tensor.squeeze(0), orig_freq=sample_rate, new_freq=generator.sample_rate
-            )
-            return audio_tensor
-        reference_audio = load_audio(reference_path)
-        reference_text = "This is Sesame. I say hi. And pwee. And more!"
-        context_segments = [
-            Segment(text=reference_text, speaker=0, audio=reference_audio)
-        ]
-        
-        print("Reference audio loaded and added to context")
-    else:
-        print("No reference audio.wav found, starting without context")
-
     conversation_history = []
-    if context_segments:
-        conversation_history.append({"role": "assistant", "content": reference_text})
+    
+    
+    def initializeContext(context_segments: list, reference_path: str, conversation_history: list, generator):
+        if os.path.exists(reference_path):
+            """
+            def load_audio(audio_path):
+                audio_tensor, sample_rate = torchaudio.load(audio_path)
+                audio_tensor = torchaudio.functional.resample(
+                    audio_tensor.squeeze(0), orig_freq=sample_rate, new_freq=generator.sample_rate
+                )
+                return audio_tensor
+            """ # OLD function. Replaced with load_prompt_audio in run_csm.py during call to prepare_prompt.
 
+            referencePrefix = reference_path.removesuffix(".wav")
+
+            def read_reference_prompt(ref_path: str) -> str:
+                if os.path.exists(prompt_path := ref_path.replace(".wav", ".txt")):
+                    with open(prompt_path, "r") as f:
+                        return f.read().strip()
+                else:
+                    return ""
+
+            # start loading any reference audio including extra files suffixed with speaker number.
+            print("Loading reference audio...")
+            reference_prompts = []
+            reference_audio_paths = [p for p in os.listdir() if p.endswith(".wav") and referencePrefix in p and p != reference_path]
+            reference_audio_paths.sort()
+            reference_audio_paths.insert(0, reference_path)
+            if len(reference_audio_paths) > 5:
+                print("\nThere may be too many reference audio files, this may cause out of memory errors.\n"
+                "If you have the VRAM, you can uncomment and increase the max_seq_len parameter in both generator.generate()s to fix this.\n"
+                "Don't forget to restart the script after changing the parameter and changing them in models.py.\n")
+            print(f"Using {reference_path} as reference audio...")
+            reference_prompts.append(read_reference_prompt(reference_path))
+            context_segments.append(prepare_prompt(reference_prompts[0], 0, reference_path, generator.sample_rate))
+            for i in range(1, len(reference_audio_paths)):
+                if (reference_text := read_reference_prompt(reference_audio_paths[i])) == "":
+                    print(f"Skipping reference audio {reference_audio_paths[i]} due to missing prompt file")
+                    continue
+                reference_prompts.append(reference_text)
+                print(f"Using {reference_audio_paths[i]} as reference audio...")
+                context_segments.append(prepare_prompt(reference_prompts[i], i, reference_audio_paths[i], generator.sample_rate))
+            
+            print("All reference audio loaded and added to context")
+        else:
+            print("No reference audio.wav found, starting without context")
+
+        conversation_history = []
+        if context_segments:
+            for segment in context_segments:
+                conversation_history.append({"role": "assistant", "content": segment.text})
+
+    initializeContext(context_segments, reference_path, conversation_history, generator)
+    num_refs = len(context_segments)
+    print(num_refs)
+    if input("Would you like to test if your audio was successfully loaded with a quick gen? (y/N): ").lower() == "y":
+                print("Generating audio for: 'This is a test of the reference audio for speaker 0.'")
+                audio = generator.generate(
+                    text="This is a test of the reference audio for speaker 0.",
+                    speaker=0,
+                    context=context_segments,
+                    max_audio_length_ms=25_000,
+                    # temperature=0.95,
+                    # topk=3,
+                    # max_seq_len=4096
+                )
+                print("Saving audio to audioTest.wav...")
+                torchaudio.save("audioTest.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
+                print("Audio saved successfully!")
     while True:
         try:
             text = input("Enter text: ")
             if (text == "$CLEAR$"):
                 print("Clearing context...")
-                if refs:
-                    context_segments = [
-                        Segment(text=reference_text, speaker=0, audio=reference_audio)
-                    ]
-                    conversation_history.append({"role": "assistant", "content": reference_text})
-                else:
-                    conversation_history = []
-                    context_segments = []
+                conversation_history = []
+                context_segments = []
+                if os.path.exists(reference_path):
+                    initializeContext(context_segments, reference_path, conversation_history, generator)
                 print("Cleared.")
             elif (text == "$SWAP$"):
                 spkr += 1
@@ -76,26 +117,24 @@ try:
                     speaker=spkr,
                     context=context_segments,
                     max_audio_length_ms=25_000,
+                    # temperature=0.95,
+                    # topk=3,
+                    # max_seq_len=4096 # uncomment any of these to use/change them as needed. For this one, please remember to change it for both models in models.py as well.
                 )
                 
-                print("Saving audio to audio.wav...")
-                torchaudio.save("audio.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
-                print("Audio saved successfully!")
                 context_segments.append(
                     Segment(text=text if not pwii else pwii[0], speaker=spkr, audio=audio)
                 )
-                
-                if len(context_segments) > 5:
-                    context_segments = context_segments[-5:]
+                print("Saving audio to audio.wav...")
+                torchaudio.save("audio.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
+                print("Audio saved successfully!")
                     
                 conversation_history.append({"role": "user", "content": text if not pwii else pwii[0]})
                 
                 if (pwii):
-                    generated = 0
+                    generated_segments = [context_segments[-1]]
+                    prompt_segments = list(context_segments[:num_refs])
                     for i in range(1, len(pwii)):
-                        if (i > 4):
-                            print("Too many segments, 4 max, skipping the rest.")
-                            break
                         print(f"Generating audio for: '{pwii[i]}'")
                         
                         try:
@@ -109,47 +148,23 @@ try:
                         audio = generator.generate(
                             text=pwii[i],
                             speaker=spkr + spkrOffset,
-                            context=context_segments,
+                            context=prompt_segments + generated_segments,
                             max_audio_length_ms=25_000,
+                            # max_seq_len=4096
                         )
                         
-                        match (i):
-                            case 1:
-                                print("Saving audio to secondary.wav...")
-                                torchaudio.save("secondary.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
-                                print("Audio saved successfully!")
-                            case 2:
-                                print("Saving audio to secondary2.wav...")
-                                torchaudio.save("secondary2.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
-                                print("Audio saved successfully!")
-                            case 3:
-                                print("Saving audio to secondary3.wav...")
-                                torchaudio.save("secondary3.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
-                                print("Audio saved successfully!")
-                            case 4:
-                                print("Saving audio to secondary4.wav...")
-                                torchaudio.save("secondary4.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
-                                print("Audio saved successfully!")
-                        
-                        context_segments.append(
+                        generated_segments.append(
                             Segment(text=pwii[i], speaker=spkr + spkrOffset, audio=audio)
                         )
-                        
-                        if len(context_segments) > 5:
-                            context_segments = context_segments[-5:]
+
+                        print(f"Saving audio to audio{i}.wav...")
+                        torchaudio.save(f"audio{i}.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
                             
                         conversation_history.append({"role": "user", "content": pwii[i]})
-                        generated += 1
                     print("Fusing audio...")
-                    match (generated):
-                        case 1:
-                            run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -filter_complex '[0:0][1:0]concat=n=2:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
-                        case 2:
-                            run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -i secondary2.wav -filter_complex '[0:0][1:0][2:0]concat=n=3:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
-                        case 3:
-                            run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -i secondary2.wav -i secondary3.wav -filter_complex '[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
-                        case 4:
-                            run(shlex.split("ffmpeg -i audio.wav -i secondary.wav -i secondary2.wav -i secondary3.wav -i secondary4.wav -filter_complex '[0:0][1:0][2:0][3:0][4:0]concat=n=5:v=0:a=1[out]' -map '[out]' outputCombined.wav"))
+                    all_audio = torch_cat([seg.audio for seg in generated_segments], dim=0)
+                    print("Saving fused audio to outputCombined.wav...")
+                    torchaudio.save("outputCombined.wav", all_audio.unsqueeze(0).cpu(), generator.sample_rate)
             
         except Exception as e:
             print(f"Error generating audio: {e}")

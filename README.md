@@ -1,9 +1,15 @@
 # CSM-Multi
 
 ## Diffe
-**diffe.py** Modified script from issue [61](https://github.com/SesameAILabs/csm/issues/61) from the original Sesame repo. Thanks to [@asiff00](https://github.com/asiff00) for the original code, there is now a way to, while keeping the models loaded, enter multiple text prompts without waiting for a reload each time. I've also added multi speaker support using speaker offset text splitting. simply separate each speaker's text with `||` and add a number to the end of the text that will be used as the offset (else a default offset will be applied). It also included a simple reference audio input capability (needs to be mono, not stereo), not as sophisticated as [csm-voice-cloning](https://github.com/isaiahbjork/csm-voice-cloning) repo's voice-clone.py, of which I've also added a modification for. (Thanks to that repo's author for the original, most use instructions can be found there, but new things will be discussed here).
+**diffe.py** Modified script from issue [61](https://github.com/SesameAILabs/csm/issues/61) from the original Sesame repo. Thanks to [@asiff00](https://github.com/asiff00) for the original code, there is now a way to, while keeping the models loaded, enter multiple text prompts without waiting for a reload each time. I've also added multi speaker support using speaker offset text splitting. simply separate each speaker's text with `||` and add a number to the end of the text that will be used as the offset (else a default offset will be applied). It also included a simple reference audio input capability (needs to be mono, not stereo), does not have silence processing as in [csm-voice-cloning](https://github.com/isaiahbjork/csm-voice-cloning) repo's voice-clone.py, of which I've also added a modification for. (Thanks to that repo's author for the original, most use instructions can be found there, but new things will be discussed here).
 
-The maximum amount of "multi-speakers" for now is 4, but this can be experimented with in the code. I've not yet come up with a better solution to ffmpeg concat argument increases per gen.\
+~~The maximum amount of "multi-speakers" for now is 4, but this can be experimented with in the code. I've not yet come up with a better solution to ffmpeg concat argument increases per gen.~~
+
+Using the torch catonate method referenced in the new `run_csm.py` example from the original repo, the above limitation has been removed as well as Diffe's reference/audio prompting capability greatly improved. For now, the old method is still used in `voice_clone.py` until all the new techniques are possibly later applied there.
+
+### References usage:
+
+By default, Diffe will load `reference.wav` as an audio prompt/reference. It is loaded into speaker id 0, which Diffe defaults to using (see [Commands Usage](https://github.com/zenforic/csm-multi?tab=readme-ov-file#commands-usage)). It will now also load (and require) an audio transcription (this can be done with Whisper) of said reference audio in the same name with .txt instead (i.e. `reference.txt`). Subsequently number-suffixed filenames with the same prefixed name (`reference` in this case, so `reference1.wav`, `reference2.wav`, etc.) will be loaded and require similarly named txt transcripts to use. Each will be sorted as done by Python's list `sort()` function and subsequently placed in the speaker numbers/IDs in order. So to switch to `reference1.wav`'s speaker, use `$SWAP$` to use it directly or add a 1 to the end of the sentence in whichever offset separated multi-conversation (see below) you're doing. Any speaker numbers used past the known references will highly likely be an entirely new speaker.
 
 ### Offsets usage:
 Example input:
@@ -12,6 +18,8 @@ Example input:
 The `||`s are the separators for different generations in one go (4 max) and the option `0` is the offset to the speaker, which defaults to +1 per `||`. In this case, the first speaker will speak, then the second, then the first again.
 
 ## Voice-Clone
+
+**3/23/2025**: This is now slightly superceded by Diffe's reference capability which was increased thanks to recent commits to the original repo. This will still be kept around as it can and likely will be fixed in future since it has [long] silence removal processing.
 
 Thanks to the efforts in this repo: [csm-voice-cloning](https://github.com/isaiahbjork/csm-voice-cloning) a "better than simple reference" voice cloning via Sesame exists. See the original repo for more. New features added are the same multispeaker functionality and commands from diffe.
 
