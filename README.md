@@ -40,15 +40,21 @@ huggingface-cli login
 
 The `triton` package cannot be installed in Windows. Instead use `pip install triton-windows`.
 
-## Usage
+## Quickstart
 
-Run the example script:
+This script will generate a conversation between 2 characters, using a prompt for each character.
+
 ```bash
 python run_csm.py
 ```
-You can also create your own script using the example code below.
 
-Generate a sentence
+## Usage
+
+If you want to write your own applications with CSM, the following examples show basic usage.
+
+#### Generate a sentence
+
+This will use a random speaker identity, as no prompt or context is provided.
 
 ```python
 from generator import load_csm_1b
@@ -74,7 +80,11 @@ audio = generator.generate(
 torchaudio.save("audio.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
 ```
 
+#### Generate with context
+
 CSM sounds best when provided with context. You can prompt or provide context to the model using a `Segment` for each speaker's utterance.
+
+NOTE: The following example is instructional and the audio files do not exist. It is intended as an example for using context with CSM.
 
 ```python
 from generator import Segment
