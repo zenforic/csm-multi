@@ -2,6 +2,7 @@ from huggingface_hub import hf_hub_download
 from generator_stream import load_csm_1b, Segment
 import traceback
 import torch
+import torchaudio
 import os
 from run_csm import prepare_prompt
 import sounddevice as sd
@@ -26,7 +27,6 @@ class AudioStream:
         self.generator = load_csm_1b()
         self.is_prebuffering = True
         self.prebuffer_size = BUFFER_SIZE
-        self.generated_segments = []
         self.audio = []
         self.frames_in_queue = 0
         self.stream = sd.OutputStream(
@@ -35,13 +35,12 @@ class AudioStream:
             channels=1,
             callback=self.callback
         )
-        self.stream.start()
 
     @torch.inference_mode()
     def callback(self, outdata, frames, time, status):
         if self.q.qsize() != self.frames_in_queue:
             self.frames_in_queue = self.q.qsize()
-            #print(f"{self.frames_in_queue} frames in queue.")
+            # print(f"{self.frames_in_queue} frames in queue.")
             if self.start_time:
                 print_time(self.start_time, "Time to first frame ready for playback:")
                 self.start_time = None
@@ -58,15 +57,21 @@ class AudioStream:
                 self.EOS = True
                 outdata[:] = 0
                 if len(self.audio) > 0:
-                    full_audio = torch.stack(self.audio).view(-1)
-                    self.generated_segments.append(Segment(text=self.text, speaker=0, audio=full_audio))
-                    self.generator.update_ctx_tokens(self.generated_segments)
+                    # self.generated_segments.append(Segment(text=self.text, speaker=0, audio=full_audio))
+                    # self.generator.update_ctx_tokens(self.generated_segments)
                     self.audio = []
             else:
                 outdata[:] = new_frame.numpy()
         except queue.Empty:
             outdata[:] = 0
             self.is_prebuffering = True
+
+    def start(self):
+        self.stream.start()
+        return self.q
+    
+    def gather(self):
+        return torch.stack(self.audio).view(-1)
 
 try:
     print("Loading model...")
@@ -143,26 +148,29 @@ try:
     audio_queue = audio_stream.start()
     print("Audio stream started, ready for input.")
     if input("Would you like to test if your audio was successfully loaded with a quick gen? (y/N): ").lower() == "y":
-                print("Generating audio for: 'This is a test of the reference audio for speaker 0.'")
-                audio_stream.start_time = time()
-                audio = generator.generate_stream(
-                    text="This is a test of the reference audio for speaker 0.",
-                    speaker=0,
-                    context=context_segments,
-                    max_audio_length_ms=25_000,
-                    # temperature=0.95,
-                    # topk=27,
-                    # max_seq_len=4096
-                )
-                print_time(audio_stream.start_time, "generate_stream() time:")
-                print("Playing audio...")
-                audio_stream.EOS = False
-                for frame in audio:
-                    audio_stream.audio.append(frame)
-                    cpu_frame = frame.detach().cpu()
-                    audio_queue.put(cpu_frame)
-                audio_queue.put(None) # EOS
-                print("Audio played successfully!")
+        print("Generating audio for: 'This is a test of the reference audio for speaker 0.'")
+        audio_stream.start_time = time()
+        audio = generator.generate_stream(
+            text="This is a test of the reference audio for speaker 0.",
+            speaker=0,
+            context=context_segments,
+            max_audio_length_ms=25_000,
+            # temperature=0.95,
+            # topk=27,
+            # max_seq_len=4096
+        )
+        print_time(audio_stream.start_time, "generate_stream() time:")
+        print("Playing audio...")
+        audio_stream.EOS = False
+        for frame in audio:
+            audio_stream.audio.append(frame)
+            cpu_frame = frame.detach().cpu()
+            audio_queue.put(cpu_frame)
+        audio_queue.put(None) # EOS
+        print("Audio played successfully!")
+        print("Saving audio to audioTest.wav...")
+        audio = audio_stream.gather()
+        torchaudio.save("audioTest.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
     running = True
     while running:
         try:
@@ -212,6 +220,14 @@ try:
                     audio_queue.put(cpu_frame)
                 audio_queue.put(None) # EOS
                 print("Audio played successfully!")
+                
+                audio = audio_stream.gather()
+                context_segments.append(
+                    Segment(text=text if not pwii else pwii[0], speaker=spkr, audio=audio)
+                )
+
+                print("Saving audio to audio.wav...")
+                torchaudio.save("audio.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
                     
                 conversation_history.append({"role": "user", "content": text if not pwii else pwii[0]})
                 
@@ -246,6 +262,13 @@ try:
                             audio_queue.put(cpu_frame)
                         audio_queue.put(None) # EOS
                         print("Audio played successfully!")
+
+                        audio = audio_stream.gather()
+                        generated_segments.append(
+                            Segment(text=pwii[i], speaker=spkr + spkrOffset, audio=audio)
+                        )
+                        print(f"Saving audio to audio{i}.wav...")
+                        torchaudio.save(f"audio{i}.wav", audio.unsqueeze(0).cpu(), generator.sample_rate)
                             
                         conversation_history.append({"role": "user", "content": pwii[i]})
             

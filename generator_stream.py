@@ -47,8 +47,6 @@ class Generator:
         self._audio_tokenizer = self._load_audio_tokenizer()
         self._watermarker = load_watermarker(device=self.device)
         self.sample_rate = self._audio_tokenizer.sample_rate
-        self.ctx_tokens = []
-        self.ctx_tokens_mask = []
 
     def _load_audio_tokenizer(self):
         mimi_weight = hf_hub_download(loaders.DEFAULT_REPO, loaders.MIMI_NAME)
@@ -89,25 +87,6 @@ class Generator:
         return torch.cat([text_tokens, audio_tokens], dim=0), torch.cat([text_masks, audio_masks], dim=0)
 
     @torch.inference_mode()
-    def update_ctx_tokens(self, context: List[Segment]):
-        start_time = time.time()
-        self.ctx_tokens, self.ctx_tokens_mask = zip(*[self._tokenize_segment(seg) for seg in context]) if context else ([], [])
-        duration = (time.time() - start_time)
-        print(f"update_ctx_tokens: {duration*1000:.02f} ms")
-
-    @torch.inference_mode()
-    def _prepare_prompt_tokens(self, text: str, speaker: int, context: List[Segment]):
-        tokens, tokens_mask = (self.ctx_tokens, self.ctx_tokens_mask)
-        start_time = time.time()
-        gen_tokens, gen_masks = self._tokenize_text_segment(text, speaker)
-        duration = (time.time() - start_time)
-        print(f"_prepare_prompt_tokens: text: {duration*1000:.02f} ms")
-        return (
-            torch.cat([*tokens, gen_tokens], dim=0).long().to(self.device),
-            torch.cat([*tokens_mask, gen_masks], dim=0).bool().to(self.device),
-        )
-
-    @torch.inference_mode()
     def generate_stream(
             self,
             text: str,
@@ -118,7 +97,19 @@ class Generator:
             topk=50):
         self._model.reset_caches()
         max_generation_len = int(max_audio_length_ms / 80)
-        prompt_tokens, prompt_tokens_mask = self._prepare_prompt_tokens(text, speaker, context)
+        tokens, tokens_mask = [], []
+        for segment in context:
+            segment_tokens, segment_tokens_mask = self._tokenize_segment(segment)
+            tokens.append(segment_tokens)
+            tokens_mask.append(segment_tokens_mask)
+
+        gen_segment_tokens, gen_segment_tokens_mask = self._tokenize_text_segment(text, speaker)
+        tokens.append(gen_segment_tokens)
+        tokens_mask.append(gen_segment_tokens_mask)
+
+        prompt_tokens = torch.cat(tokens, dim=0).long().to(self.device)
+        prompt_tokens_mask = torch.cat(tokens_mask, dim=0).bool().to(self.device)
+
 
         curr_tokens, curr_tokens_mask = prompt_tokens.unsqueeze(0), prompt_tokens_mask.unsqueeze(0)
         curr_pos = torch.arange(0, prompt_tokens.size(0)).unsqueeze(0).long().to(self.device)
