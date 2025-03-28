@@ -139,7 +139,7 @@ try:
     num_refs = len(context_segments)
     print(num_refs)
     print("Starting audio stream...")
-    audio_stream = AudioStream(generator.sample_rate)
+    audio_stream = AudioStream()
     audio_queue = audio_stream.start()
     print("Audio stream started, ready for input.")
     if input("Would you like to test if your audio was successfully loaded with a quick gen? (y/N): ").lower() == "y":
