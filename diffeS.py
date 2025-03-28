@@ -1,12 +1,10 @@
 from huggingface_hub import hf_hub_download
 from generator_stream import load_csm_1b, Segment
-import torchaudio
 import traceback
 import torch
 import os
 from run_csm import prepare_prompt
 import sounddevice as sd
-import numpy as np
 import queue
 from time import time
 
@@ -23,24 +21,27 @@ def print_time(start_time, msg):
         print(f"{msg} {duration*1000:.02f} ms")
 
 class AudioStream:
-    def __init__(self, samplerate):
+    def __init__(self):
         self.q = queue.Queue(maxsize=40)
+        self.generator = load_csm_1b()
         self.is_prebuffering = True
         self.prebuffer_size = BUFFER_SIZE
-        self.buffer = []
+        self.generated_segments = []
+        self.audio = []
         self.frames_in_queue = 0
         self.stream = sd.OutputStream(
-            samplerate=samplerate,
+            samplerate=self.generator.sample_rate,
             blocksize=FRAME_SIZE,
             channels=1,
             callback=self.callback
         )
+        self.stream.start()
 
     @torch.inference_mode()
     def callback(self, outdata, frames, time, status):
         if self.q.qsize() != self.frames_in_queue:
             self.frames_in_queue = self.q.qsize()
-            # print(f"{self.frames_in_queue} frames in queue.")
+            #print(f"{self.frames_in_queue} frames in queue.")
             if self.start_time:
                 print_time(self.start_time, "Time to first frame ready for playback:")
                 self.start_time = None
@@ -52,19 +53,20 @@ class AudioStream:
             else:
                 self.is_prebuffering = False
         try:
-            new_frame = self.q.get_nowait().unsqueeze(1)
-            if new_frame.shape[0] < outdata.shape[0]:
-                padding = torch.zeros(outdata.shape[0] - new_frame.shape[0], 1)
-                new_frame = torch.vstack((new_frame, padding))
-
-            outdata[:] = new_frame.numpy()
+            new_frame = self.q.get_nowait()
+            if new_frame == None: # EOS
+                self.EOS = True
+                outdata[:] = 0
+                if len(self.audio) > 0:
+                    full_audio = torch.stack(self.audio).view(-1)
+                    self.generated_segments.append(Segment(text=self.text, speaker=0, audio=full_audio))
+                    self.generator.update_ctx_tokens(self.generated_segments)
+                    self.audio = []
+            else:
+                outdata[:] = new_frame.numpy()
         except queue.Empty:
             outdata[:] = 0
             self.is_prebuffering = True
-
-    def start(self):
-        self.stream.start()
-        return self.q
 
 try:
     print("Loading model...")
@@ -154,9 +156,12 @@ try:
                 )
                 print_time(audio_stream.start_time, "generate_stream() time:")
                 print("Playing audio...")
+                audio_stream.EOS = False
                 for frame in audio:
+                    audio_stream.audio.append(frame)
                     cpu_frame = frame.detach().cpu()
                     audio_queue.put(cpu_frame)
+                audio_queue.put(None) # EOS
                 print("Audio played successfully!")
     running = True
     while running:
@@ -200,9 +205,12 @@ try:
                 )
                 print_time(audio_stream.start_time, "generate_stream() time:")
                 print("Playing audio...")
+                audio_stream.EOS = False
                 for frame in audio:
+                    audio_stream.audio.append(frame)
                     cpu_frame = frame.detach().cpu()
                     audio_queue.put(cpu_frame)
+                audio_queue.put(None) # EOS
                 print("Audio played successfully!")
                     
                 conversation_history.append({"role": "user", "content": text if not pwii else pwii[0]})
@@ -231,11 +239,13 @@ try:
                         print_time(audio_stream.start_time, "generate_stream() time:")
 
                         print("Playing audio...")
+                        audio_stream.EOS = False
                         for frame in audio:
+                            audio_stream.audio.append(frame)
                             cpu_frame = frame.detach().cpu()
                             audio_queue.put(cpu_frame)
+                        audio_queue.put(None) # EOS
                         print("Audio played successfully!")
-                        print(f"Saving audio to audio{i}.wav...")
                             
                         conversation_history.append({"role": "user", "content": pwii[i]})
             

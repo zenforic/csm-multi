@@ -47,6 +47,8 @@ class Generator:
         self._audio_tokenizer = self._load_audio_tokenizer()
         self._watermarker = load_watermarker(device=self.device)
         self.sample_rate = self._audio_tokenizer.sample_rate
+        self.ctx_tokens = []
+        self.ctx_tokens_mask = []
 
     def _load_audio_tokenizer(self):
         mimi_weight = hf_hub_download(loaders.DEFAULT_REPO, loaders.MIMI_NAME)
@@ -65,6 +67,8 @@ class Generator:
 
     @torch.inference_mode()
     def _tokenize_audio(self, audio: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        assert audio.ndim == 1, "Audio must be single channel"
+        # (K, T)
         audio = audio.to(self.device)
         audio_tokens = self._audio_tokenizer.encode(audio.unsqueeze(0).unsqueeze(0))[0]
 
@@ -85,9 +89,19 @@ class Generator:
         return torch.cat([text_tokens, audio_tokens], dim=0), torch.cat([text_masks, audio_masks], dim=0)
 
     @torch.inference_mode()
+    def update_ctx_tokens(self, context: List[Segment]):
+        start_time = time.time()
+        self.ctx_tokens, self.ctx_tokens_mask = zip(*[self._tokenize_segment(seg) for seg in context]) if context else ([], [])
+        duration = (time.time() - start_time)
+        print(f"update_ctx_tokens: {duration*1000:.02f} ms")
+
+    @torch.inference_mode()
     def _prepare_prompt_tokens(self, text: str, speaker: int, context: List[Segment]):
-        tokens, tokens_mask = zip(*[self._tokenize_segment(seg) for seg in context]) if context else ([], [])
+        tokens, tokens_mask = (self.ctx_tokens, self.ctx_tokens_mask)
+        start_time = time.time()
         gen_tokens, gen_masks = self._tokenize_text_segment(text, speaker)
+        duration = (time.time() - start_time)
+        print(f"_prepare_prompt_tokens: text: {duration*1000:.02f} ms")
         return (
             torch.cat([*tokens, gen_tokens], dim=0).long().to(self.device),
             torch.cat([*tokens_mask, gen_masks], dim=0).bool().to(self.device),
@@ -101,8 +115,7 @@ class Generator:
             context: List[Segment],
             max_audio_length_ms=90_000,
             temperature=0.9,
-            topk=50,
-            max_seq_len: int = 2048):
+            topk=50):
         self._model.reset_caches()
         max_generation_len = int(max_audio_length_ms / 80)
         prompt_tokens, prompt_tokens_mask = self._prepare_prompt_tokens(text, speaker, context)
@@ -110,6 +123,7 @@ class Generator:
         curr_tokens, curr_tokens_mask = prompt_tokens.unsqueeze(0), prompt_tokens_mask.unsqueeze(0)
         curr_pos = torch.arange(0, prompt_tokens.size(0)).unsqueeze(0).long().to(self.device)
 
+        max_seq_len = 2048
         max_context_len = max_seq_len - max_generation_len
         if curr_tokens.size(1) >= max_context_len:
             raise ValueError(
@@ -123,14 +137,13 @@ class Generator:
             sample_rate = self.sample_rate  # 24,000 Hz
             for i in range(max_generation_len):
                 start_time = time.time()
-
                 sample = self._model.generate_frame(curr_tokens, curr_tokens_mask, curr_pos, temperature, topk)
 
                 if torch.all(sample == 0):
                     break  # EOS
 
-                yield self._audio_tokenizer.decode(sample.unsqueeze(-1)).squeeze()
-                
+                yield self._audio_tokenizer.decode(sample.unsqueeze(-1)).squeeze().unsqueeze(1)
+
                 if i > 50:
                     # Calculate elapsed time and sleep to match real-time playback
                     elapsed_time = time.time() - start_time
