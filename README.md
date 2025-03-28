@@ -7,7 +7,7 @@
 
 Using the torch catonate method referenced in the new `run_csm.py` example from the original repo, the above limitation has been removed as well as Diffe's reference/audio prompting capability greatly improved. For now, the old method is still used in `voice_clone.py` until all the new techniques are possibly later applied there.
 
-**diffeS.py** Audio stream capable version, does not keep context past references. Thanks to the efforts of [@tibrisch](https://github.com/tibrisch) in [this](https://github.com/tibrisch/csm) repo. Audio does not save, you must record the stream if you want that from this version. Nothing else different aside.
+**diffeS.py** Audio stream capable version, ~~does not keep context past references.~~ Thanks to the efforts of [@tibrisch](https://github.com/tibrisch) in [this](https://github.com/tibrisch/csm) repo. ~~Audio does not save, you must record the stream if you want that from this version. Nothing else different aside.~~ Audio saving and context had been fixed for this script.
 
 ### References usage:
 
